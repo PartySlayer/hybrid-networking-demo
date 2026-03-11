@@ -12,3 +12,13 @@ output "public_subnet_id" {
   description = "L'ID della public subnet (utile se in futuro vorrai deployare un ALB dal root module)"
   value       = aws_subnet.public.id
 }
+
+output "alb_dns_name" {
+  description = "Il DNS Name pubblico del Load Balancer per accedere all'applicazione"
+  value       = aws_lb.this.dns_name
+}
+
+output "target_group_arn" {
+  description = "L'ARN del Target Group (utile per agganciare istanze EC2 o servizi ECS)"
+  value       = aws_lb_target_group.workload_tg.arn
+}

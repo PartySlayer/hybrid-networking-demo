@@ -8,13 +8,20 @@ resource "aws_vpc" "this" {
 }
 
 
-# Definiamo la subnet pubblica, in cui vivono ALB e NAT
+# Definiamo 2 subnet pubbliche, in cui vivono ALB e NAT
 
 resource "aws_subnet" "public" {
   vpc_id            = aws_vpc.this.id
   cidr_block        = var.public_cidr
   availability_zone = var.az
   tags              = { Name = "inspection-public-subnet" }
+}
+
+resource "aws_subnet" "public_2" {
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = var.public_cidr_2
+  availability_zone = var.az_2
+  tags              = { Name = "inspection-public-subnet-2" }
 }
 
 
@@ -99,13 +106,18 @@ locals {
 
 
 # IGW Edge Route Table (Ingress Routing)
-# Devia il traffico ricevuto da internet verso il firewall
+# Devia il traffico ricevuto da internet verso il firewall, entrambe le AZ
 
 resource "aws_route_table" "igw_edge" {
   vpc_id = aws_vpc.this.id
 
   route {
     cidr_block      = aws_subnet.public.cidr_block
+    vpc_endpoint_id = local.fw_vpce_id
+  }
+
+  route {
+    cidr_block      = aws_subnet.public_2.cidr_block
     vpc_endpoint_id = local.fw_vpce_id
   }
   tags = { Name = "inspection-igw-edge-rt" }
@@ -136,6 +148,11 @@ resource "aws_route_table" "public" {
 
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_assoc_2" {
+  subnet_id      = aws_subnet.public_2.id
   route_table_id = aws_route_table.public.id
 }
 
