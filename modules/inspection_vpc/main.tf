@@ -167,11 +167,19 @@ resource "aws_route_table" "firewall" {
     cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat.id
   }
-  route {
-    cidr_block         = var.internal_network_cidr
-    transit_gateway_id = var.tgw_id
-  }
+
   tags = { Name = "inspection-firewall-rt" }
+}
+
+# Rotta agganciata separatamente, per aggiungere logica di depends on tgw attachment
+# Di fatto la RT verrebbe creata prima, con l'errore "tgw does not exist"
+
+resource "aws_route" "firewall_to_tgw" {
+  route_table_id         = aws_route_table.firewall.id
+  destination_cidr_block = var.internal_network_cidr
+  transit_gateway_id     = var.tgw_id
+
+  depends_on = [aws_ec2_transit_gateway_vpc_attachment.this]
 }
 
 resource "aws_route_table_association" "firewall_assoc" {
@@ -196,4 +204,12 @@ resource "aws_route_table" "tgw_attach_rt" {
 resource "aws_route_table_association" "tgw_attach_assoc" {
   subnet_id      = aws_subnet.tgw_attach.id
   route_table_id = aws_route_table.tgw_attach_rt.id
+}
+
+resource "aws_ec2_transit_gateway_vpc_attachment" "this" {
+  transit_gateway_id = var.tgw_id
+  vpc_id             = aws_vpc.this.id
+  subnet_ids         = [aws_subnet.tgw_attach.id] # Usa la subnet dedicata
+  
+  tags = { Name = "inspection-vpc-tgw-attachment" }
 }
