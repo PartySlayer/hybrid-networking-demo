@@ -22,3 +22,8 @@ output "target_group_arn" {
   description = "L'ARN del Target Group (utile per agganciare istanze EC2 o servizi ECS)"
   value       = aws_lb_target_group.workload_tg.arn
 }
+
+output "tgw_attachment_id" {
+  description = "L'ID dell'attachment del Transit Gateway"
+  value       = aws_ec2_transit_gateway_vpc_attachment.this.id
+}

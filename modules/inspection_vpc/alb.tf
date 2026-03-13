@@ -6,7 +6,7 @@ resource "aws_security_group" "alb_sg" {
   description = "Consente traffico HTTP/HTTPS da Internet"
   vpc_id      = aws_vpc.this.id # Fa riferimento alla VPC creata nel main.tf
 
-# Regola per il traffico in uscita di default. Per quello in entrata agganciamo singolarmente due regole. 
+  # Regola per il traffico in uscita di default. Per quello in entrata agganciamo singolarmente due regole. 
 
   egress {
     description = "Traffico in uscita verso le reti interne (Spoke VPCs)"
@@ -45,11 +45,11 @@ resource "aws_vpc_security_group_ingress_rule" "allow_https" {
 
 resource "aws_lb" "this" {
   name               = "inspection-alb"
-  internal           = false        # Essendo su internet
+  internal           = false # Essendo su internet
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  
-  subnets            = [aws_subnet.public.id, aws_subnet.public_2.id] 
+
+  subnets = [aws_subnet.public.id, aws_subnet.public_2.id]
 
   enable_deletion_protection = false
 
@@ -59,15 +59,15 @@ resource "aws_lb" "this" {
 
 # Definiamo target group e listener
 resource "aws_lb_target_group" "workload_tg" {
-  name        = "workload-tg"
-  port        = 80
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.this.id
-  
+  name     = "workload-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.this.id
+
   # ATTENZIONE: Questo è fondamentale!
   # Usiamo "ip" (non "instance") perché i server si trovano in ALTRE VPC collegate tramite Transit Gateway.
   # In questo modo l'ALB indirizzerà il traffico direttamente agli IP privati delle istanze.
-  target_type = "ip" 
+  target_type = "ip"
 
   health_check {
     path                = "/"
