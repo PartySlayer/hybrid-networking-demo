@@ -97,7 +97,9 @@ resource "aws_networkfirewall_firewall" "fw" {
 
 # Estraiamo dinamicamente l'ID del VPC Endpoint del Firewall
 locals {
-  fw_vpce_id = element(tolist(aws_networkfirewall_firewall.fw.firewall_status[0].sync_states), 0).attachment[0].endpoint_id
+    fw_vpce_id = {
+    for state in tolist(aws_networkfirewall_firewall.fw.firewall_status[0].sync_states) : state.availability_zone => state.attachment[0].endpoint_id
+  }
 }
 
 
@@ -113,12 +115,12 @@ resource "aws_route_table" "igw_edge" {
 
   route {
     cidr_block      = aws_subnet.public.cidr_block
-    vpc_endpoint_id = local.fw_vpce_id
+    vpc_endpoint_id = local.fw_vpce_id[var.az]
   }
 
   route {
     cidr_block      = aws_subnet.public_2.cidr_block
-    vpc_endpoint_id = local.fw_vpce_id
+    vpc_endpoint_id = local.fw_vpce_id[var.az]
   }
   tags = { Name = "inspection-igw-edge-rt" }
 }
@@ -141,7 +143,7 @@ resource "aws_route_table" "public" {
   }
   route {
     cidr_block      = var.internal_network_cidr
-    vpc_endpoint_id = local.fw_vpce_id
+    vpc_endpoint_id = local.fw_vpce_id[var.az]
   }
   tags = { Name = "inspection-public-rt" }
 }
@@ -205,7 +207,7 @@ resource "aws_route_table" "tgw_attach_rt" {
 
   route {
     cidr_block      = "0.0.0.0/0"
-    vpc_endpoint_id = local.fw_vpce_id
+    vpc_endpoint_id = local.fw_vpce_id[var.az]
   }
   tags = { Name = "inspection-tgw-attach-rt" }
 }
