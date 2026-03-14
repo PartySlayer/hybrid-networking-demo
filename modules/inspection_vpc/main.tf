@@ -182,11 +182,20 @@ resource "aws_route" "firewall_to_tgw" {
   depends_on = [aws_ec2_transit_gateway_vpc_attachment.this]
 }
 
+# Stessa cosa per la vpn site to site
+
+resource "aws_route" "firewall_to_tgw_vpn" {
+  route_table_id         = aws_route_table.firewall.id
+  destination_cidr_block = "192.168.10.0/24" # O la variabile che contiene il CIDR della tua VPN
+  transit_gateway_id     = var.tgw_id
+
+  depends_on = [aws_ec2_transit_gateway_vpc_attachment.this]
+}
+
 resource "aws_route_table_association" "firewall_assoc" {
   subnet_id      = aws_subnet.firewall.id
   route_table_id = aws_route_table.firewall.id
 }
-
 
 # TGW Attachment Route Table
 # Intercetta i pacchetti provenienti dalle VPC di workload
@@ -210,6 +219,7 @@ resource "aws_ec2_transit_gateway_vpc_attachment" "this" {
   transit_gateway_id = var.tgw_id
   vpc_id             = aws_vpc.this.id
   subnet_ids         = [aws_subnet.tgw_attach.id] # Usa la subnet dedicata
+  appliance_mode_support = "enable"
 
   tags = { Name = "inspection-vpc-tgw-attachment" }
 }
