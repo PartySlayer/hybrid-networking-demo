@@ -25,6 +25,7 @@ module "workload_vpc_1" {
   tgw_subnet_cidr = "10.1.2.0/28" # Basta una /28 per il TGW, anzi meglio per non sprecare IP utili
   az              = var.az
   tgw_id          = module.tgw.tgw_id
+  user_data       = var.user_data
 }
 
 # Istanziamo la Workload VPC 2
@@ -37,6 +38,7 @@ module "workload_vpc_2" {
   tgw_subnet_cidr = "10.2.2.0/28" # Stessa cosa qui
   az              = var.az
   tgw_id          = module.tgw.tgw_id
+  user_data       = ""
 }
 
 module "tgw" {
@@ -44,49 +46,36 @@ module "tgw" {
 
 }
 
-# Associa Workload 1 alla tabella Spoke
-
-resource "aws_ec2_transit_gateway_route_table_association" "workload_1" {
-  transit_gateway_attachment_id  = module.workload_vpc_1.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.spoke_rt_id
+# IP Statico per il nostro Router On-Prem
+resource "aws_eip" "vpn_router_ip" {
+  domain = "vpc"
 }
 
-
-# Associa Workload 2 alla tabella Spoke
-
-resource "aws_ec2_transit_gateway_route_table_association" "workload_2" {
-  transit_gateway_attachment_id  = module.workload_vpc_2.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.spoke_rt_id
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = module.on_prem_simulator_vpc.instance_id
+  allocation_id = aws_eip.vpn_router_ip.id
 }
 
+module "on_prem_simulator_vpc" {
+  source = "./modules/on_prem_vpc"
 
-# Associa Inspection VPC alla sua tabella dedicata
+  vpc_name = "on-premise-network"
+  vpc_cidr = "192.168.10.0/24"
+  public_subnet_cidr = "192.168.10.0/25"
+  az = var.az
+  tgw_id = module.tgw.tgw_id
+  aws_side_cidr = "10.0.0.0/8"
+  vpn_tunnel1_address = module.s2s_vpn.tunnel1_address
+  vpn_tunnel1_psk     = module.s2s_vpn.tunnel1_preshared_key
+  cgw_public_ip = aws_eip.vpn_router_ip.public_ip
 
-resource "aws_ec2_transit_gateway_route_table_association" "inspection" {
-  transit_gateway_attachment_id  = module.inspection_vpc.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.inspection_rt_id
 }
 
-
-# PROPAGAZIONI
-
-# La tabella Inspection deve conoscere le route degli Spoke per poter rispondere
-resource "aws_ec2_transit_gateway_route_table_propagation" "inspection_learn_workload_1" {
-  transit_gateway_attachment_id  = module.workload_vpc_1.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.inspection_rt_id
-}
-
-resource "aws_ec2_transit_gateway_route_table_propagation" "inspection_learn_workload_2" {
-  transit_gateway_attachment_id  = module.workload_vpc_2.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.inspection_rt_id
-}
-
-# DEFAULT ROUTING 
-# Forza il traffico degli spoke verso il Firewall.
-
-# Crea una route di default (0.0.0.0/0) nella tabella spoke che punta all'Inspection VPC
-resource "aws_ec2_transit_gateway_route" "spoke_to_inspection" {
-  destination_cidr_block         = "0.0.0.0/0"
-  transit_gateway_attachment_id  = module.inspection_vpc.tgw_attachment_id
-  transit_gateway_route_table_id = module.tgw.spoke_rt_id
+module "s2s_vpn" {
+  source = "./modules/s2s_vpn"
+  on_prem_cidr = "192.168.10.0/24"
+  on_prem_public_ip = aws_eip.vpn_router_ip.public_ip
+  tgw_id = module.tgw.tgw_id
+  tgw_inspection_rt_id = module.tgw.inspection_rt_id
+  tgw_spoke_rt_id = module.tgw.spoke_rt_id
 }

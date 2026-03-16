@@ -15,3 +15,16 @@ variable "az_2" {
   type        = string
   default     = "eu-west-1b"
 }
+
+variable "user_data" {
+  description = "Script da eseguire all'avvio dell'istanza"
+  type        = string
+  default = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install -y nginx
+              echo '<h1>Ciao dall'istanza nel Workload 1 (rispondo dal dietro al firewall!)</h1>' > /usr/share/nginx/html/index.html'
+              systemctl start nginx
+              systemctl enable nginx
+              EOF
+}

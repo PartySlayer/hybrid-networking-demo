@@ -27,3 +27,8 @@ variable "tgw_id" {
   description = "ID del Transit Gateway centrale"
   type        = string
 }
+
+variable "user_data" {
+  description = "Script da eseguire all'avvio dell'istanza"
+  type        = string
+}
