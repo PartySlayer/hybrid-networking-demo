@@ -21,6 +21,11 @@ resource "aws_vpn_connection" "this" {
   }
 }
 
+resource "aws_vpn_connection_route" "on_prem_static_route" {
+  destination_cidr_block = var.on_prem_cidr
+  vpn_connection_id      = aws_vpn_connection.this.id
+}
+
 # Associazione alla Route Table "Spoke" del TGW
 # Tutto il traffico in ingresso dalla VPN userà questa tabella (e quindi andrà al Firewall)
 resource "aws_ec2_transit_gateway_route_table_association" "vpn_assoc" {
