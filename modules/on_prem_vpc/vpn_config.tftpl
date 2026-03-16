@@ -1,0 +1,39 @@
+#!/bin/bash
+dnf update -y
+dnf install strongswan -y
+
+# Abilita IP Forwarding
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+
+# Configurazione IPsec
+cat <<EOT > /etc/strongswan/ipsec.conf
+conn %default
+    ikelifetime=28800s
+    keylife=3600s
+    rekeymargin=3m
+    keyingtries=3
+    keyexchange=ikev1
+    authby=secret
+conn tunnel1
+    left=%defaultroute
+    leftid=${cgw_public_ip}
+    right=${vpn_tunnel1_address}
+    type=tunnel
+    leftsubnet=${on_prem_cidr}
+    rightsubnet=${aws_cidr}
+    auto=start
+    ike=aes128-sha1-modp1024
+    esp=aes128-sha1
+    dpddelay=10s
+    dpdtimeout=30s
+    dpdaction=restart
+EOT
+
+# Chiavi segrete
+cat <<EOT > /etc/strongswan/ipsec.secrets
+${cgw_public_ip} ${vpn_tunnel1_address} : PSK "${vpn_tunnel1_psk}"
+EOT
+
+systemctl enable strongswan
+systemctl start strongswan
